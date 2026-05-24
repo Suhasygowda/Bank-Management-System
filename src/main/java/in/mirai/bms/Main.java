@@ -7,22 +7,27 @@ import in.mirai.bms.util.ConsoleUI;
 
 import java.util.Scanner;
 
+/**
+ * The main entry point for the Mirai Bank Management System.
+ * Handles the application lifecycle, main menu navigation, and user input validation.
+ */
 public class Main {
 
-    private static final Scanner        sc             = new Scanner(System.in);
+    /** Scanner instance for user input */
+    private static final Scanner sc = new Scanner(System.in);
+    
+    /** Service layer instance for handling bank operations */
     private static final AccountService accountService = new AccountServiceImpl();
 
-    // ── Menu box geometry ────────────────────────────────────────────────────
-    // Inner width of the menu box (between the two ║ characters).
-    // Must equal: len("  [n]  ") + longest_label + trailing_spaces
-    // len("  [n]  ") = 7, longest label = "View Account Details" = 20 → inner = 44
-    private static final int MENU_INNER = 44;
-
+    /**
+     * Main method to start the application.
+     * @param args Command line arguments (not used).
+     */
     public static void main(String[] args) {
+        int choice;
         ConsoleUI.clearScreen();
         showWelcomeScreen();
 
-        int choice;
         do {
             showMenu();
             choice = getValidChoice();
@@ -35,16 +40,13 @@ public class Main {
                 case 5 -> transferMoney();
                 case 6 -> transactionHistory();
                 case 7 -> exitApplication();
-                default -> ConsoleUI.printWarn("Invalid choice. Enter a number from 1 to 7.");
+                default -> ConsoleUI.printError("Invalid Choice! Please try again.");
             }
-
+            
             if (choice != 7) {
-                System.out.println();
-                ConsoleUI.printDivider();
-                ConsoleUI.printPrompt("Press Enter to return to menu...");
+                System.out.println("\nPress Enter to continue...");
                 sc.nextLine();
-                if (sc.hasNextLine()) sc.nextLine();
-                ConsoleUI.clearScreen();
+                if (sc.hasNextLine()) sc.nextLine(); // Consume newline
             }
 
         } while (choice != 7);
@@ -52,17 +54,18 @@ public class Main {
         sc.close();
     }
 
-    // ── Screens ──────────────────────────────────────────────────────────────
-
+    /**
+     * Prompts the user for account details and creates a new account.
+     */
     private static void createAccount() {
         ConsoleUI.printHeader("Create Account");
-        ConsoleUI.printSectionLabel("New Account Registration");
 
-        int    accountId  = getValidInt("Account ID        : ");
-        sc.nextLine();
-        String holderName = getValidString("Holder Name       : ");
-        int    pin        = getValidPin();
-        int    balance    = getPositiveAmount("Initial Balance ₹ : ");
+        int accountId = getValidInt("Enter Account ID: ");
+        sc.nextLine(); // Consume newline
+
+        String holderName = getValidString("Enter Holder Name: ");
+        int pin = getValidPin();
+        int balance = getPositiveAmount("Enter Initial Balance ₹: ");
 
         Account account = new Account();
         account.setAccountId(accountId);
@@ -70,133 +73,114 @@ public class Main {
         account.setPin(pin);
         account.setBalance(balance);
 
-        ConsoleUI.showLoading("Creating Account");
+        ConsoleUI.showLoading("Processing Account Creation");
         accountService.createAccount(account);
     }
 
+    /**
+     * Validates user and displays account information.
+     */
     private static void viewAccount() {
         ConsoleUI.printHeader("View Account");
-        int accountId = getValidInt("Account ID  : ");
-        int pin       = getValidPin();
-
+        int accountId = getValidInt("Enter Account ID: ");
+        int pin = getValidPin();
+        
         ConsoleUI.showLoading("Fetching Account Details");
         accountService.viewAccount(accountId, pin);
     }
 
+    /**
+     * Prompts for deposit details and processes the transaction.
+     */
     private static void depositMoney() {
-        ConsoleUI.printHeader("Deposit Funds");
-        int accountId = getValidInt("Account ID  : ");
-        int pin       = getValidPin();
-        int amount    = getPositiveAmount("Amount ₹    : ");
+        ConsoleUI.printHeader("Deposit Money");
+        int accountId = getValidInt("Enter Account ID: ");
+        int pin = getValidPin();
+        int amount = getPositiveAmount("Enter Amount ₹: ");
 
         ConsoleUI.showLoading("Processing Deposit");
         accountService.deposit(accountId, amount, pin);
     }
 
+    /**
+     * Prompts for withdrawal details and processes the transaction.
+     */
     private static void withdrawMoney() {
-        ConsoleUI.printHeader("Withdraw Funds");
-        int accountId = getValidInt("Account ID  : ");
-        int pin       = getValidPin();
-        int amount    = getPositiveAmount("Amount ₹    : ");
+        ConsoleUI.printHeader("Withdraw Money");
+        int accountId = getValidInt("Enter Account ID: ");
+        int pin = getValidPin();
+        int amount = getPositiveAmount("Enter Amount ₹: ");
 
         ConsoleUI.showLoading("Processing Withdrawal");
         accountService.withdraw(accountId, amount, pin);
     }
 
+    /**
+     * Prompts for transfer details and initiates fund movement.
+     */
     private static void transferMoney() {
-        ConsoleUI.printHeader("Transfer Funds");
-        int senderId   = getValidInt("Sender Account ID   : ");
-        int pin        = getValidPin();
-        int receiverId = getValidInt("Receiver Account ID : ");
-        int amount     = getPositiveAmount("Amount ₹            : ");
+        ConsoleUI.printHeader("Transfer Money");
+        int senderId = getValidInt("Enter Sender Account ID: ");
+        int pin = getValidPin();
+        int receiverId = getValidInt("Enter Receiver Account ID: ");
+        int amount = getPositiveAmount("Enter Amount ₹: ");
 
         ConsoleUI.showLoading("Initiating Fund Transfer");
         accountService.transfer(senderId, receiverId, amount, pin);
     }
 
+    /**
+     * Displays all past transactions for a validated account.
+     */
     private static void transactionHistory() {
         ConsoleUI.printHeader("Transaction History");
-        int accountId = getValidInt("Account ID  : ");
-        int pin       = getValidPin();
+        int accountId = getValidInt("Enter Account ID: ");
+        int pin = getValidPin();
 
         ConsoleUI.showLoading("Retrieving History");
         accountService.transactionHistory(accountId, pin);
     }
 
-    // ── Welcome & Menu ───────────────────────────────────────────────────────
-
+    /**
+     * Displays the bank's welcome screen.
+     */
     private static void showWelcomeScreen() {
-        ConsoleUI.printHeader("Mirai Bank");
-        System.out.println(ConsoleUI.TEAL + ConsoleUI.BOLD
-                + "         Safe  •  Secure  •  Reliable"
-                + ConsoleUI.RESET);
-        System.out.println();
-    }
-
-    private static void showMenu() {
-        String thick = "═".repeat(MENU_INNER);
-        String thin  = "─".repeat(MENU_INNER);
-
-        System.out.println();
-        System.out.println(ConsoleUI.TEAL + "  ╔" + thick + "╗" + ConsoleUI.RESET);
-
-        // Title row — manually centred, no printf (avoids ANSI width issue)
-        String title  = "MIRAI BANK  —  MAIN MENU";
-        int    lp     = (MENU_INNER - title.length()) / 2;
-        int    rp     = MENU_INNER - title.length() - lp;
-        System.out.println(ConsoleUI.TEAL + "  ║" + ConsoleUI.RESET
-                + " ".repeat(lp)
-                + ConsoleUI.BOLD + ConsoleUI.SAND + title + ConsoleUI.RESET
-                + " ".repeat(rp)
-                + ConsoleUI.TEAL + "║" + ConsoleUI.RESET);
-
-        System.out.println(ConsoleUI.TEAL + "  ╠" + thick + "╣" + ConsoleUI.RESET);
-        menuRow(1, "Create New Account");
-        menuRow(2, "View Account Details");
-        menuRow(3, "Deposit Funds");
-        menuRow(4, "Withdraw Funds");
-        menuRow(5, "Transfer Funds");
-        menuRow(6, "Transaction History");
-        System.out.println(ConsoleUI.TEAL + "  ╠" + thin + "╣" + ConsoleUI.RESET);
-        menuRow(7, "Exit Application");
-        System.out.println(ConsoleUI.TEAL + "  ╚" + thick + "╝" + ConsoleUI.RESET);
+        ConsoleUI.printHeader("Welcome to Mirai Bank");
+        System.out.println(ConsoleUI.CYAN + "      Safe • Secure • Reliable" + ConsoleUI.RESET);
     }
 
     /**
-     * Renders one menu row with pixel-perfect ║ alignment.
-     *
-     * Inner content = "  [n]  " (7 chars) + label + trailing spaces = MENU_INNER
+     * Renders the main bank menu options.
      */
-    private static void menuRow(int n, String label) {
-        int trailing = MENU_INNER - 7 - label.length();   // 7 = len("  [n]  ")
-        System.out.println(
-                ConsoleUI.TEAL   + "  ║" + ConsoleUI.RESET
-                        + "  "
-                        + ConsoleUI.AMBER  + "[" + n + "]" + ConsoleUI.RESET
-                        + "  "
-                        + ConsoleUI.BRIGHT_WHITE + label + ConsoleUI.RESET
-                        + " ".repeat(Math.max(0, trailing))
-                        + ConsoleUI.TEAL + "║" + ConsoleUI.RESET
-        );
+    private static void showMenu() {
+        System.out.println("\n" + ConsoleUI.CYAN + "╔════════════════════════════════════════╗");
+        System.out.println("║ " + ConsoleUI.BOLD + ConsoleUI.WHITE + "            BANK MAIN MENU            " + ConsoleUI.RESET + ConsoleUI.CYAN + " ║");
+        System.out.println("╠════════════════════════════════════════╣");
+        System.out.println("║  " + ConsoleUI.YELLOW + "1." + ConsoleUI.RESET + " Create New Account                ║");
+        System.out.println("║  " + ConsoleUI.YELLOW + "2." + ConsoleUI.RESET + " View Account Details              ║");
+        System.out.println("║  " + ConsoleUI.YELLOW + "3." + ConsoleUI.RESET + " Deposit Funds                     ║");
+        System.out.println("║  " + ConsoleUI.YELLOW + "4." + ConsoleUI.RESET + " Withdraw Funds                    ║");
+        System.out.println("║  " + ConsoleUI.YELLOW + "5." + ConsoleUI.RESET + " Transfer Funds                    ║");
+        System.out.println("║  " + ConsoleUI.YELLOW + "6." + ConsoleUI.RESET + " View Transaction History          ║");
+        System.out.println("║  " + ConsoleUI.YELLOW + "7." + ConsoleUI.RESET + " Exit Application                  ║");
+        System.out.println("╚════════════════════════════════════════╝" + ConsoleUI.RESET);
     }
 
+    /**
+     * Displays a goodbye message and terminates the session.
+     */
     private static void exitApplication() {
-        ConsoleUI.printHeader("Goodbye");
-        System.out.println(ConsoleUI.BRIGHT_GREEN + ConsoleUI.BOLD
-                + "        Thank you for banking with Mirai!"
-                + ConsoleUI.RESET);
-        System.out.println(ConsoleUI.SLATE + "        Have a great day.\n" + ConsoleUI.RESET);
-        ConsoleUI.printTimestamp();
+        ConsoleUI.printHeader("Thank You For Banking");
+        System.out.println(ConsoleUI.GREEN + "      Visit Again • Have a Great Day!" + ConsoleUI.RESET);
     }
 
-    // ── Input Validators ─────────────────────────────────────────────────────
+    // --- Helper Methods for Input Validation ---
 
     private static int getValidChoice() {
         while (true) {
-            System.out.println();
-            ConsoleUI.printPrompt("Enter choice (1–7): ");
+            ConsoleUI.printPrompt("Enter Choice: ");
             if (sc.hasNextInt()) return sc.nextInt();
-            ConsoleUI.printWarn("Enter a number between 1 and 7.");
+            ConsoleUI.printError("Invalid Input! Enter numbers 1-7.");
             sc.next();
         }
     }
@@ -205,7 +189,7 @@ public class Main {
         while (true) {
             ConsoleUI.printPrompt(message);
             if (sc.hasNextInt()) return sc.nextInt();
-            ConsoleUI.printWarn("Numbers only, please.");
+            ConsoleUI.printError("Invalid Input! Numbers only.");
             sc.next();
         }
     }
@@ -214,15 +198,15 @@ public class Main {
         while (true) {
             int amount = getValidInt(message);
             if (amount > 0) return amount;
-            ConsoleUI.printWarn("Amount must be greater than ₹0.");
+            ConsoleUI.printError("Amount must be greater than 0!");
         }
     }
 
     private static int getValidPin() {
         while (true) {
-            int pin = getValidInt("4-digit PIN : ");
+            int pin = getValidInt("Enter 4-digit PIN: ");
             if (String.valueOf(pin).length() == 4) return pin;
-            ConsoleUI.printWarn("PIN must be exactly 4 digits.");
+            ConsoleUI.printError("PIN must be exactly 4 digits!");
         }
     }
 
@@ -231,7 +215,7 @@ public class Main {
             ConsoleUI.printPrompt(message);
             String input = sc.nextLine().trim();
             if (!input.isEmpty()) return input;
-            ConsoleUI.printWarn("This field cannot be empty.");
+            ConsoleUI.printError("Input cannot be empty!");
         }
     }
 }
