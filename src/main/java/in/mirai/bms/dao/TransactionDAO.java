@@ -9,6 +9,6 @@ public interface TransactionDAO {
     boolean saveTransaction(Transaction transaction);
 
     List<Transaction> getTransactionHistory(
-            int accountId, int pin
+            int accountId
     );
 }

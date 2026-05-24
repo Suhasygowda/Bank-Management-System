@@ -13,6 +13,17 @@ public class Account {
     public Account() {
     }
 
+    @Override
+    public String toString() {
+        return "Account{" +
+                "accountId=" + accountId +
+                ", holderName='" + holderName + '\'' +
+                ", balance=" + balance +
+                ", pin=" + pin +
+                ", createdAt=" + createdAt +
+                '}';
+    }
+
     public Account(int accountId, String holderName, int balance, int pin) {
         this.accountId = accountId;
         this.holderName = holderName;

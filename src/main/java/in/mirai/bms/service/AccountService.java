@@ -1,16 +1,23 @@
 package in.mirai.bms.service;
 
+import in.mirai.bms.model.Account;
+
 public interface AccountService {
 
-    void createAccount();
+    void createAccount(Account account);
 
-    void viewAccount();
+    void viewAccount(int accountId, int pin);
 
-    void deposit();
+    void deposit(int accountId, int amount, int pin);
 
-    void withdraw();
+    void withdraw(int accountId,
+                  int amount,
+                  int pin);
 
-    void transfer();
+    void transfer(int senderId,
+                  int receiverId,
+                  int amount,
+                  int pin);
 
-    void transactionHistory();
+    void transactionHistory(int accountId, int pin);
 }

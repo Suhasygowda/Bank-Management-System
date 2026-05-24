@@ -8,6 +8,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Optional;
 
 public class AccountDAOImpl implements AccountDAO
 {
@@ -40,12 +41,11 @@ public class AccountDAOImpl implements AccountDAO
         {
             System.out.println("Server Error in AccountDAOImpl.createAccount : " + e.getMessage());
         }
-
         return false;
     }
 
     @Override
-    public Account getAccountById(int accountId, int pin)
+    public Optional<Account> getAccountById(int accountId, int pin)
     {
 
         String sql = """
@@ -78,9 +78,8 @@ public class AccountDAOImpl implements AccountDAO
 
                     account.setCreatedAt(rs.getTimestamp("created_at"));
 
-                    return account;
+                    return Optional.of(account);
                 }
-                System.out.println("Invalid Account ID or PIN!");
             }
 
         }
@@ -92,11 +91,12 @@ public class AccountDAOImpl implements AccountDAO
         {
             System.out.println("Server Error in AccountDAOImpl.getAccountById : " + e.getMessage());
         }
-        return null;
+        return Optional.empty();
     }
 
     @Override
-    public boolean updateBalance(int accountId, int amount, int pin) {
+    public boolean updateBalance(int accountId, int amount, int pin)
+    {
         String sql = """
             UPDATE accounts
             SET balance = ?
@@ -113,12 +113,7 @@ public class AccountDAOImpl implements AccountDAO
 
             int rows = ps.executeUpdate();
 
-            if ( rows == 0 )
-            {
-                System.out.println("Invalid Account ID or PIN!");
-                return false;
-            }
-            return true;
+            return rows != 0;
 
         }
         catch (SQLException e)
@@ -136,7 +131,8 @@ public class AccountDAOImpl implements AccountDAO
     public boolean transfer(int senderId,
                             int receiverId,
                             int amount,
-                            int pin) {
+                            int pin)
+    {
 
         String withdrawSql = """
             UPDATE accounts

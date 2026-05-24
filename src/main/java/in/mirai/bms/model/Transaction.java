@@ -13,6 +13,17 @@ public class Transaction {
     public Transaction() {
     }
 
+    @Override
+    public String toString() {
+        return "Transaction{" +
+                "transactionId='" + transactionId + '\'' +
+                ", accountId=" + accountId +
+                ", type=" + type +
+                ", amount=" + amount +
+                ", transactionTime=" + transactionTime +
+                '}';
+    }
+
     public Transaction(String transactionId,
                        int accountId,
                        TransactionType type,
