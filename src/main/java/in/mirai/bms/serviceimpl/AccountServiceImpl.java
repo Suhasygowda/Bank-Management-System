@@ -16,30 +16,29 @@ import java.util.UUID;
 
 public class AccountServiceImpl implements AccountService {
 
-    final AccountDAO accountDAO = new AccountDAOImpl();
+    final AccountDAO accountDAO       = new AccountDAOImpl();
     final TransactionDAO transactionDAO = new TransactionDAOImpl();
 
     @Override
     public void createAccount(Account account) {
         boolean created = accountDAO.createAccount(account);
         if (created) {
-            ConsoleUI.printSuccess("Account Created Successfully!");
+            ConsoleUI.printSuccess("Account #" + account.getAccountId()
+                    + " created for " + account.getHolderName() + ".");
+            ConsoleUI.printTimestamp();
         } else {
-            ConsoleUI.printError("Could Not Create account. Please try again later!");
+            ConsoleUI.printError("Could not create account. Please try again later.");
         }
     }
 
     @Override
     public void viewAccount(int accountId, int pin) {
         accountDAO.getAccountById(accountId, pin).ifPresentOrElse(
-            account -> {
-                System.out.println("\n" + ConsoleUI.CYAN + "------- Account Details -------" + ConsoleUI.RESET);
-                System.out.println(ConsoleUI.BOLD + "Account ID   : " + ConsoleUI.RESET + account.getAccountId());
-                System.out.println(ConsoleUI.BOLD + "Holder Name  : " + ConsoleUI.RESET + account.getHolderName());
-                System.out.println(ConsoleUI.BOLD + "Balance      : " + ConsoleUI.RESET + ConsoleUI.GREEN + "₹" + account.getBalance() + ConsoleUI.RESET);
-                System.out.println(ConsoleUI.CYAN + "-------------------------------" + ConsoleUI.RESET);
-            },
-            () -> ConsoleUI.printError("Invalid Account ID or PIN!")
+                account -> ConsoleUI.printAccountCard(
+                        account.getAccountId(),
+                        account.getHolderName(),
+                        account.getBalance()),
+                () -> ConsoleUI.printError("Invalid Account ID or PIN.")
         );
     }
 
@@ -48,23 +47,19 @@ public class AccountServiceImpl implements AccountService {
         Account account = accountDAO.getAccountById(accountId, pin).orElse(null);
 
         if (account == null) {
-            ConsoleUI.printError("Invalid Account ID or PIN!");
+            ConsoleUI.printError("Invalid Account ID or PIN.");
             return;
         }
 
-        int newBalance = account.getBalance() + amount;
-        boolean updated = accountDAO.updateBalance(accountId, newBalance, pin);
+        long before     = account.getBalance();
+        long newBalance = before + amount;
+        boolean updated = accountDAO.updateBalance(accountId, (int) newBalance, pin);
 
         if (updated) {
-            Transaction transaction = new Transaction();
-            transaction.setTransactionId(UUID.randomUUID().toString());
-            transaction.setAccountId(accountId);
-            transaction.setType(TransactionType.DEPOSIT);
-            transaction.setAmount(amount);
-            transaction.setTransactionTime(new Timestamp(System.currentTimeMillis()));
-
-            transactionDAO.saveTransaction(transaction);
-            ConsoleUI.printSuccess("Deposit Successful! New Balance: ₹" + newBalance);
+            recordTransaction(accountId, TransactionType.DEPOSIT, amount);
+            ConsoleUI.printSuccess("Deposit successful.");
+            ConsoleUI.printBalanceChange(before, newBalance);
+            ConsoleUI.printTimestamp();
         }
     }
 
@@ -73,68 +68,60 @@ public class AccountServiceImpl implements AccountService {
         Account account = accountDAO.getAccountById(accountId, pin).orElse(null);
 
         if (account == null) {
-            ConsoleUI.printError("Invalid Account ID or PIN!");
+            ConsoleUI.printError("Invalid Account ID or PIN.");
             return;
         }
 
         if (account.getBalance() < amount) {
-            ConsoleUI.printError("Insufficient Balance!");
+            ConsoleUI.printError("Insufficient balance. Available: ₹"
+                    + String.format("%,d", account.getBalance()));
             return;
         }
 
-        int newBalance = account.getBalance() - amount;
-        boolean updated = accountDAO.updateBalance(accountId, newBalance, pin);
+        long before     = account.getBalance();
+        long newBalance = before - amount;
+        boolean updated = accountDAO.updateBalance(accountId, (int) newBalance, pin);
 
         if (updated) {
-            Transaction transaction = new Transaction();
-            transaction.setTransactionId(UUID.randomUUID().toString());
-            transaction.setAccountId(accountId);
-            transaction.setType(TransactionType.WITHDRAW);
-            transaction.setAmount(amount);
-            transaction.setTransactionTime(new Timestamp(System.currentTimeMillis()));
-
-            transactionDAO.saveTransaction(transaction);
-            ConsoleUI.printSuccess("Withdrawal Successful! Remaining Balance: ₹" + newBalance);
+            recordTransaction(accountId, TransactionType.WITHDRAW, amount);
+            ConsoleUI.printSuccess("Withdrawal successful.");
+            ConsoleUI.printBalanceChange(before, newBalance);
+            ConsoleUI.printTimestamp();
         }
     }
 
     @Override
     public void transfer(int senderId, int receiverId, int amount, int pin) {
         if (senderId == receiverId) {
-            ConsoleUI.printError("Cannot transfer to the same account!");
+            ConsoleUI.printError("Cannot transfer to the same account.");
             return;
         }
 
         Account sender = accountDAO.getAccountById(senderId, pin).orElse(null);
         if (sender == null) {
-            ConsoleUI.printError("Invalid Sender Account or PIN!");
+            ConsoleUI.printError("Invalid Sender Account or PIN.");
+            return;
+        }
+
+        if (sender.getBalance() < amount) {
+            ConsoleUI.printError("Insufficient balance. Available: ₹"
+                    + String.format("%,d", sender.getBalance()));
             return;
         }
 
         boolean transferred = accountDAO.transfer(senderId, receiverId, amount, pin);
 
         if (transferred) {
-            // Sender transaction
-            Transaction out = new Transaction();
-            out.setTransactionId(UUID.randomUUID().toString());
-            out.setAccountId(senderId);
-            out.setType(TransactionType.TRANSFER_OUT);
-            out.setAmount(amount);
-            out.setTransactionTime(new Timestamp(System.currentTimeMillis()));
-            transactionDAO.saveTransaction(out);
+            recordTransaction(senderId,   TransactionType.TRANSFER_OUT, amount);
+            recordTransaction(receiverId, TransactionType.TRANSFER_IN,  amount);
 
-            // Receiver transaction
-            Transaction in = new Transaction();
-            in.setTransactionId(UUID.randomUUID().toString());
-            in.setAccountId(receiverId);
-            in.setType(TransactionType.TRANSFER_IN);
-            in.setAmount(amount);
-            in.setTransactionTime(new Timestamp(System.currentTimeMillis()));
-            transactionDAO.saveTransaction(in);
-
-            ConsoleUI.printSuccess("Transfer Successful!");
+            ConsoleUI.printSuccess("Transfer of ₹" + String.format("%,d", amount)
+                    + " from #" + senderId + " → #" + receiverId + " completed.");
+            ConsoleUI.printBalanceChange(sender.getBalance(),
+                    sender.getBalance() - amount);
+            ConsoleUI.printTimestamp();
         } else {
-            ConsoleUI.printError("Transfer Failed! Check balance or receiver details.");
+            ConsoleUI.printError("Transfer failed. Check balance or receiver details.");
         }
     }
 
@@ -143,32 +130,43 @@ public class AccountServiceImpl implements AccountService {
         boolean valid = accountDAO.getAccountById(accountId, pin).isPresent();
 
         if (!valid) {
-            ConsoleUI.printError("Invalid Account ID or PIN!");
+            ConsoleUI.printError("Invalid Account ID or PIN.");
             return;
         }
 
         List<Transaction> transactions = transactionDAO.getTransactionHistory(accountId);
 
         if (transactions.isEmpty()) {
-            ConsoleUI.printInfo("No transactions found for this account.");
+            ConsoleUI.printInfo("No transactions found for account #" + accountId + ".");
             return;
         }
 
-        System.out.println("\n" + ConsoleUI.WHITE + "--------------------------------------------------------------------------------");
-        System.out.printf(ConsoleUI.BOLD + "%-38s | %-12s | %-8s | %-20s\n" + ConsoleUI.RESET, 
-                          "Transaction ID", "Type", "Amount", "Timestamp");
-        System.out.println("--------------------------------------------------------------------------------");
+        ConsoleUI.printTransactionTableHeader();
 
         for (Transaction t : transactions) {
-            String color = t.getType() == TransactionType.DEPOSIT || t.getType() == TransactionType.TRANSFER_IN 
-                           ? ConsoleUI.GREEN : ConsoleUI.RED;
-            
-            System.out.printf("%-38s | %s%-12s%s | %s₹%-7d%s | %-20s\n",
+            boolean isCredit = t.getType() == TransactionType.DEPOSIT
+                    || t.getType() == TransactionType.TRANSFER_IN;
+            ConsoleUI.printTransactionRow(
                     t.getTransactionId(),
-                    color, t.getType(), ConsoleUI.RESET,
-                    color, t.getAmount(), ConsoleUI.RESET,
-                    t.getTransactionTime());
+                    t.getType().name(),
+                    isCredit,
+                    t.getAmount(),
+                    t.getTransactionTime().toString()
+            );
         }
-        System.out.println("--------------------------------------------------------------------------------" + ConsoleUI.RESET);
+
+        ConsoleUI.printTransactionTableFooter(transactions.size());
+    }
+
+    // ── private helper ──────────────────────────────────────────────────────
+
+    private void recordTransaction(int accountId, TransactionType type, int amount) {
+        Transaction tx = new Transaction();
+        tx.setTransactionId(UUID.randomUUID().toString());
+        tx.setAccountId(accountId);
+        tx.setType(type);
+        tx.setAmount(amount);
+        tx.setTransactionTime(new Timestamp(System.currentTimeMillis()));
+        transactionDAO.saveTransaction(tx);
     }
 }
