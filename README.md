@@ -55,12 +55,13 @@ The project follows a clean, modular design to ensure scalability and maintainab
    ```
 2. Create the necessary tables:
    ```sql
-   CREATE TABLE accounts (
-       account_id INT PRIMARY KEY,
-       holder_name VARCHAR(100) NOT NULL,
-       pin INT NOT NULL,
-       balance INT DEFAULT 0
-   );
+   CREATE TABLE accounts(
+    account_id INT PRIMARY KEY AUTO_INCREMENT,
+    holder_name VARCHAR(100) NOT NULL,
+    balance DOUBLE NOT NULL,
+    pin INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
 
    CREATE TABLE transactions (
        transaction_id VARCHAR(50) PRIMARY KEY,
