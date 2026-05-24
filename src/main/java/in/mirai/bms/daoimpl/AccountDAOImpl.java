@@ -18,20 +18,26 @@ public class AccountDAOImpl implements AccountDAO {
 
     @Override
     public boolean createAccount(Account account) {
-        String sql = "insert into accounts(account_id, holder_name, balance, pin, created_at) values (?,?,?,?,?)";
+        String sql = "insert into accounts(holder_name, balance, pin, created_at) values (?,?,?,?)";
 
         try (Connection connection = DBConnection.getConnection();
-             PreparedStatement ps = connection.prepareStatement(sql)) {
+             PreparedStatement ps = connection.prepareStatement(sql, java.sql.Statement.RETURN_GENERATED_KEYS)) {
             
-            ps.setInt(1, account.getAccountId());
-            ps.setString(2, account.getHolderName());
-            ps.setInt(3, account.getBalance());
-            ps.setInt(4, account.getPin());
-            ps.setTimestamp(5, account.getCreatedAt());
+            ps.setString(1, account.getHolderName());
+            ps.setInt(2, account.getBalance());
+            ps.setInt(3, account.getPin());
+            ps.setTimestamp(4, account.getCreatedAt());
 
-            // Using executeUpdate instead of batch since it's a single insert in this context
             int rows = ps.executeUpdate();
-            return rows > 0;
+            
+            if (rows > 0) {
+                try (ResultSet generatedKeys = ps.getGeneratedKeys()) {
+                    if (generatedKeys.next()) {
+                        account.setAccountId(generatedKeys.getInt(1));
+                    }
+                }
+                return true;
+            }
         } catch (SQLException e) {
             System.err.println("SQL Error (createAccount): " + e.getMessage());
         } catch (Exception e) {

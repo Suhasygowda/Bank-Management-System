@@ -58,7 +58,7 @@ The project follows a clean, modular design to ensure scalability and maintainab
    CREATE TABLE accounts(
     account_id INT PRIMARY KEY AUTO_INCREMENT,
     holder_name VARCHAR(100) NOT NULL,
-    balance DOUBLE NOT NULL,
+    balance INT DEFAULT 0,
     pin INT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );

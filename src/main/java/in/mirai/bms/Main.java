@@ -58,14 +58,12 @@ public class Main {
         ConsoleUI.printHeader("Create Account");
         ConsoleUI.printSectionLabel("New Account Registration");
 
-        int    accountId  = getValidInt("Account ID        : ");
-        sc.nextLine();
+        sc.nextLine(); // Consume newline from menu selection
         String holderName = getValidString("Holder Name       : ");
         int    pin        = getValidPin();
         int    balance    = getPositiveAmount("Initial Balance ₹ : ");
 
         Account account = new Account();
-        account.setAccountId(accountId);
         account.setHolderName(holderName);
         account.setPin(pin);
         account.setBalance(balance);
